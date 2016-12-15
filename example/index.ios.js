@@ -11,9 +11,8 @@ import {
   Text,
   View
 } from 'react-native';
-import CacheableImage from 'react-native-cacheable-image-dank';
 
-export default class example extends Component {
+export default class Example extends Component {
   render() {
     return (
       <View style={styles.container}>
@@ -27,9 +26,6 @@ export default class example extends Component {
           Press Cmd+R to reload,{'\n'}
           Cmd+D or shake for dev menu
         </Text>
-        {/* <CacheableImage
-          source={{uri: 'https://opensrs.com/wp-content/uploads/comodo_vertical.png'}}
-          /> */}
       </View>
     );
   }
@@ -54,4 +50,4 @@ const styles = StyleSheet.create({
   },
 });
 
-AppRegistry.registerComponent('example', () => example);
+AppRegistry.registerComponent('Example', () => Example);
