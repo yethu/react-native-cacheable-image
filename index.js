@@ -180,7 +180,7 @@ export default class CacheableImage extends React.Component {
     };
 
     render() {
-        const { children, defaultSource, ...props } = this.props;
+        const { children, ...props } = this.props;
         if (!this.state.isRemote) {
             return this.renderLocal();
         }
@@ -189,17 +189,13 @@ export default class CacheableImage extends React.Component {
             return this.renderCache();
         }
 
-        if (this.props.defaultSource) {
-            return this.renderDefaultSource();
-        }
-
         return (
             <Image {...props} />
         );
     }
 
     renderCache() {
-        const { children, defaultSource, ...props } = this.props;
+        const { children, ...props } = this.props;
         return (
             <Image {...props} source={{uri: 'file://'+this.state.cachedImagePath}}>
             {children}
@@ -208,27 +204,17 @@ export default class CacheableImage extends React.Component {
     }
 
     renderLocal() {
-        const { children, defaultSource, ...props } = this.props;
+        const { children, ...props } = this.props;
         return (
             <Image {...props}>
             {children}
             </Image>
         );
     }
-
-    renderDefaultSource() {
-        const { children, defaultSource, ...props } = this.props;
-        return (
-            <CacheableImage {...props} source={defaultSource}>
-            {children}
-            </CacheableImage>
-        );
-    }
 }
 
 CacheableImage.propTypes = {
     indicatorProps: React.PropTypes.object,
-    defaultSource: Image.propTypes.source,
     useQueryParamsInCacheKey: React.PropTypes.oneOfType([
         React.PropTypes.bool,
         React.PropTypes.array

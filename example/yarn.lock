@@ -3094,9 +3094,9 @@ react-native:
     xmldoc "^0.4.0"
     yargs "^6.4.0"
 
-react-native-cacheable-image-dank:
-  version "1.4.5"
-  resolved "https://registry.yarnpkg.com/react-native-cacheable-image-dank/-/react-native-cacheable-image-dank-1.4.5.tgz#9ba053712cedce54afdeb04017b9e470f78d170a"
+react-native-cacheable-image-dank@1.4.6:
+  version "1.4.6"
+  resolved "https://registry.yarnpkg.com/react-native-cacheable-image-dank/-/react-native-cacheable-image-dank-1.4.6.tgz#2c0c6b307e83f08e08a6ab6b06bd060c6bd49005"
   dependencies:
     crypto-js "^3.1.6"
     react-native-fs "^2.0.1-rc.2"

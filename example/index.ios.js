@@ -28,9 +28,9 @@ export default class Example extends Component {
           Press Cmd+R to reload,{'\n'}
           Cmd+D or shake for dev menu
         </Text>
-        {/* <CacheableImage
+        <CacheableImage
           source={{uri: 'https://opensrs.com/wp-content/uploads/comodo_vertical.png'}}
-          /> */}
+          />
       </View>
     );
   }
