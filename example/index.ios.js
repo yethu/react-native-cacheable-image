@@ -11,6 +11,8 @@ import {
   Text,
   View
 } from 'react-native';
+import CacheableImage from 'react-native-cacheable-image-dank';
+import redux from 'redux'
 
 export default class Example extends Component {
   render() {
@@ -26,6 +28,9 @@ export default class Example extends Component {
           Press Cmd+R to reload,{'\n'}
           Cmd+D or shake for dev menu
         </Text>
+        {/* <CacheableImage
+          source={{uri: 'https://opensrs.com/wp-content/uploads/comodo_vertical.png'}}
+          /> */}
       </View>
     );
   }
