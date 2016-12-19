@@ -1,6 +1,6 @@
 {
   "name": "react-native-cacheable-image-dank",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "An Image component for React Native that will cache itself to disk",
   "main": "index.js",
   "scripts": {
