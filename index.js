@@ -224,8 +224,6 @@ CacheableImage.propTypes = {
 
 CacheableImage.defaultProps = {
     style: { backgroundColor: 'transparent' },
-    indicatorProps: {
-        style: {}
-    },
+    indicatorProps: {},
     useQueryParamsInCacheKey: false // bc
 };
