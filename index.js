@@ -1,32 +1,35 @@
 import React from 'react';
-import { ActivityIndicator, NetInfo } from 'react-native';
+import { Image, ActivityIndicator, NetInfo, Platform } from 'react-native';
 import RNFS, { DocumentDirectoryPath } from 'react-native-fs';
-// import ResponsiveImage from 'react-native-responsive-image';
-import Image from 'react-native-image-progress';
+import ResponsiveImage from 'react-native-image-progress';
 
 const SHA1 = require("crypto-js/sha1");
 const URL = require('url-parse');
 
-export default class CacheableImage extends React.Component {
+export default
+class CacheableImage extends React.Component {
 
     constructor(props) {
         super(props)
         this.imageDownloadBegin = this.imageDownloadBegin.bind(this);
         this.imageDownloadProgress = this.imageDownloadProgress.bind(this);
         this._handleConnectivityChange = this._handleConnectivityChange.bind(this);
+        this._stopDownload = this._stopDownload.bind(this);
 
         this.state = {
             isRemote: false,
             cachedImagePath: null,
-            downloading: false,
-            cacheable: true,
-            jobId: null,
-            networkAvailable: false
+            cacheable: true
         };
+
+        this.networkAvailable = props.networkAvailable;
+        this.downloading = false;
+        this.jobId = null;
     };
 
     componentWillReceiveProps(nextProps) {
-        if (nextProps.source != this.props.source) {
+        if (nextProps.source != this.props.source || nextProps.networkAvailable != this.networkAvailable) {
+            this.networkAvailable = nextProps.networkAvailable;
             this._processSource(nextProps.source);
         }
     }
@@ -39,12 +42,20 @@ export default class CacheableImage extends React.Component {
     }
 
     async imageDownloadBegin(info) {
-        this.setState({downloading: true, jobId: info.jobId});
+        switch (info.statusCode) {
+            case 404:
+            case 403:
+                break;
+            default:
+                this.downloading = true;
+                this.jobId = info.jobId;
+        }
     }
 
     async imageDownloadProgress(info) {
         if ((info.contentLength / info.bytesWritten) == 1) {
-            this.setState({downloading: false, jobId: null});
+            this.downloading = false;
+            this.jobId = null;
         }
     }
 
@@ -55,17 +66,24 @@ export default class CacheableImage extends React.Component {
         RNFS
         .stat(filePath)
         .then((res) => {
-            if (res.isFile()) {
+            if (res.isFile() && res.size > 0) {
+                // It's possible the component has already unmounted before setState could be called.
+                // It happens when the defaultSource and source have both been cached.
+                // An attempt is made to display the default however it's instantly removed since source is available
+
                 // means file exists, ie, cache-hit
                 this.setState({cacheable: true, cachedImagePath: filePath});
+            }
+            else {
+                throw Error("CacheableImage: Invalid file in checkImageCache()");
             }
         })
         .catch((err) => {
 
             // means file does not exist
             // first make sure network is available..
-            if (! this.state.networkAvailable) {
-                this.setState({cacheable: false, cachedImagePath: null});
+            // if (! this.state.networkAvailable) {
+            if (! this.networkAvailable) {
                 return;
             }
 
@@ -76,37 +94,63 @@ export default class CacheableImage extends React.Component {
             RNFS
             .mkdir(dirPath, {NSURLIsExcludedFromBackupKey: true})
             .then(() => {
+
                 // before we change the cachedImagePath.. if the previous cachedImagePath was set.. remove it
                 if (this.state.cacheable && this.state.cachedImagePath) {
                     let delImagePath = this.state.cachedImagePath;
-                    this.deleteFilePath(delImagePath);
+                    this._deleteFilePath(delImagePath);
+                }
+
+                // If already downloading, cancel the job
+                if (this.jobId) {
+                    this._stopDownload();
                 }
 
                 let downloadOptions = {
                     fromUrl: imageUri,
                     toFile: filePath,
-                    background: true,
+                    background: this.props.downloadInBackground,
                     begin: this.imageDownloadBegin,
                     progress: this.imageDownloadProgress
                 };
 
                 // directory exists.. begin download
-                RNFS
-                .downloadFile(downloadOptions)
-                .promise
-                .then(() => {
-                    this.setState({cacheable: true, cachedImagePath: filePath});
+                let download = RNFS
+                .downloadFile(downloadOptions);
+
+                this.downloading = true;
+                this.jobId = download.jobId;
+
+                download.promise
+                .then((res) => {
+                    this.downloading = false;
+                    this.jobId = null;
+
+                    switch (res.statusCode) {
+                        case 404:
+                        case 403:
+                            this.setState({cacheable: false, cachedImagePath: null});
+                            break;
+                        default:
+                            this.setState({cacheable: true, cachedImagePath: filePath});
+                    }
                 })
                 .catch((err) => {
                     // error occurred while downloading or download stopped.. remove file if created
                     this._deleteFilePath(filePath);
-                    this.setState({cacheable: false, cachedImagePath: null});
+
+                    // If there was no in-progress job, it may have been cancelled already (and this component may be unmounted)
+                    if (this.downloading) {
+                        this.downloading = false;
+                        this.jobId = null;
+                        this.setState({cacheable: false, cachedImagePath: null});
+                    }
                 });
             })
             .catch((err) => {
                 this._deleteFilePath(filePath);
                 this.setState({cacheable: false, cachedImagePath: null});
-            })
+            });
         });
     }
 
@@ -122,12 +166,24 @@ export default class CacheableImage extends React.Component {
         });
     }
 
-    _processSource(source) {
+    _processSource(source, skipSourceCheck) {
+
         if (source !== null
-		    && source != ''
+            && source != ''
             && typeof source === "object"
-            && source.hasOwnProperty('uri'))
+            && source.hasOwnProperty('uri')
+            && (
+                skipSourceCheck ||
+                typeof skipSourceCheck === 'undefined' ||
+                (!skipSourceCheck && source != this.props.source)
+           )
+        )
         { // remote
+
+            if (this.jobId) { // sanity
+                this._stopDownload();
+            }
+
             const url = new URL(source.uri, null, true);
 
             // handle query params for cache key
@@ -143,9 +199,8 @@ export default class CacheableImage extends React.Component {
                 cacheable = cacheable.concat(url.query);
             }
 
-            // ignore extension
             const type = url.pathname.replace(/.*\.(.*)/, '$1');
-            const cacheKey = SHA1(cacheable) + '.' + (type.length < url.pathname.length ? type : '');
+            const cacheKey = SHA1(cacheable) + (type.length < url.pathname.length ? '.' + type : '');
 
             this.checkImageCache(source.uri, url.host, cacheKey);
             this.setState({isRemote: true});
@@ -155,33 +210,41 @@ export default class CacheableImage extends React.Component {
         }
     }
 
-    componentWillMount() {
-        NetInfo.isConnected.addEventListener('change', this._handleConnectivityChange);
-        // initial
-        NetInfo.isConnected.fetch().then(isConnected => {
-            this.setState({networkAvailable: isConnected});
-		});
+    _stopDownload() {
+        if (!this.jobId) return;
 
-        this._processSource(this.props.source);
+        this.downloading = false;
+        RNFS.stopDownload(this.jobId);
+        this.jobId = null;
+    }
+
+    componentWillMount() {
+        if (this.props.checkNetwork) {
+            NetInfo.isConnected.addEventListener('change', this._handleConnectivityChange);
+            // componentWillUnmount unsets this._handleConnectivityChange in case the component unmounts before this fetch resolves
+            NetInfo.isConnected.fetch().done(this._handleConnectivityChange);
+        }
+
+        this._processSource(this.props.source, true);
     }
 
     componentWillUnmount() {
-        NetInfo.isConnected.removeEventListener('change', this._handleConnectivityChange);
+        if (this.props.checkNetwork) {
+            NetInfo.isConnected.removeEventListener('change', this._handleConnectivityChange);
+            this._handleConnectivityChange = null;
+        }
 
-        if (this.state.downloading && this.state.jobId) {
-            RNFS.stopDownload(this.state.jobId);
+        if (this.downloading && this.jobId) {
+            this._stopDownload();
         }
     }
 
     async _handleConnectivityChange(isConnected) {
-	    this.setState({
-            networkAvailable: isConnected,
-	    });
+        this.networkAvailable = isConnected;
     };
 
     render() {
-        const { children, ...props } = this.props;
-        if (!this.state.isRemote) {
+        if (!this.state.isRemote && !this.props.defaultSource) {
             return this.renderLocal();
         }
 
@@ -189,41 +252,62 @@ export default class CacheableImage extends React.Component {
             return this.renderCache();
         }
 
+        if (this.props.defaultSource) {
+            return this.renderDefaultSource();
+        }
+
         return (
-            <Image {...props} />
+            <ActivityIndicator {...this.props.activityIndicatorProps} />
         );
     }
 
     renderCache() {
-        const { children, ...props } = this.props;
+        const { children, defaultSource, checkNetwork, networkAvailable, downloadInBackground, activityIndicatorProps, ...props } = this.props;
         return (
-            <Image {...props} source={{uri: 'file://'+this.state.cachedImagePath}}>
+            <ResponsiveImage {...props} source={{uri: 'file://'+this.state.cachedImagePath}}>
             {children}
-            </Image>
+            </ResponsiveImage>
         );
     }
 
     renderLocal() {
-        const { children, ...props } = this.props;
+        const { children, defaultSource, checkNetwork, networkAvailable, downloadInBackground, activityIndicatorProps, ...props } = this.props;
         return (
-            <Image {...props}>
+            <ResponsiveImage {...props}>
             {children}
-            </Image>
+            </ResponsiveImage>
+        );
+    }
+
+    renderDefaultSource() {
+        const { children, defaultSource, checkNetwork, networkAvailable, ...props } = this.props;
+        return (
+            <CacheableImage {...props} source={defaultSource} checkNetwork={false} networkAvailable={this.networkAvailable} >
+            {children}
+            </CacheableImage>
         );
     }
 }
 
 CacheableImage.propTypes = {
-    indicatorProps: React.PropTypes.object,
+    activityIndicatorProps: React.PropTypes.object,
+    defaultSource: Image.propTypes.source,
     useQueryParamsInCacheKey: React.PropTypes.oneOfType([
         React.PropTypes.bool,
         React.PropTypes.array
-    ])
+    ]),
+    checkNetwork: React.PropTypes.bool,
+    networkAvailable: React.PropTypes.bool,
+    downloadInBackground: React.PropTypes.bool
 };
-
 
 CacheableImage.defaultProps = {
     style: { backgroundColor: 'transparent' },
-    indicatorProps: {},
-    useQueryParamsInCacheKey: false // bc
+    activityIndicatorProps: {
+        style: { backgroundColor: 'transparent', flex: 1 }
+    },
+    useQueryParamsInCacheKey: false, // bc
+    checkNetwork: true,
+    networkAvailable: false,
+    downloadInBackground: (Platform.OS === 'ios') ? false : true
 };
