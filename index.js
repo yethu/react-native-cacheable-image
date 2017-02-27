@@ -258,7 +258,7 @@ class CacheableImage extends React.Component {
 
         return (
           <ResponsiveImage {...this.props}>
-          {children}
+          {this.props.children}
           </ResponsiveImage>
         );
     }
