@@ -1,5 +1,5 @@
 {
-  "name": "react-native-cacheable-image-dank",
+  "name": "react-native-cacheable-image-yt",
   "version": "1.5.2",
   "description": "An Image component for React Native that will cache itself to disk",
   "main": "index.js",
@@ -8,17 +8,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/danielkermode/react-native-cacheable-image.git"
+    "url": "git+https://github.com/yethu/react-native-cacheable-image.git"
   },
   "keywords": [
     "react-native"
   ],
-  "author": "danielkermode",
+  "author": "yethu",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/danielkermode/react-native-cacheable-image/issues"
+    "url": "https://github.com/yethu/react-native-cacheable-image/issues"
   },
-  "homepage": "https://github.com/danielkermode/react-native-cacheable-image#readme",
+  "homepage": "https://github.com/yethu/react-native-cacheable-image#readme",
   "dependencies": {
     "crypto-js": "^3.1.6",
     "prop-types": "^15.6.0",
