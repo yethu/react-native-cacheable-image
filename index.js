@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, ActivityIndicator, NetInfo, Platform } from 'react-native';
 import RNFS, { DocumentDirectoryPath } from 'react-native-fs';
 import ResponsiveImage from 'react-native-image-progress';
+import PropTypes from 'prop-types';
 
 const SHA1 = require("crypto-js/sha1");
 const URL = require('url-parse');
